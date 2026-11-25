@@ -1,0 +1,188 @@
+---
+title: "Standard laryngoscopy is better than the video-assisted variant"
+author: "Tristan Tangdiongga"
+date: "2026-10-25"
+output:
+  github_document: default
+---
+
+## Introduction
+
+In this document, multivariate regression will be applied to a dataset of an randomized controlled trial (RCT) about laryngoscopy for preoperative intubation.
+
+## Prerequisites
+
+The packages `tidyverse` and `gtsummary` were used for the data manipulation and statistics, respectively. The dataset that was used is the `laryngoscope` dataset from the `medicaldata` library.
+
+```{r message = FALSE}
+library(tidyverse)
+library(gtsummary)
+library(medicaldata)
+
+lar <- laryngoscope
+```
+
+## Descriptive statistics
+
+The descriptive statistics are displayed in table 1. A total of 99 people were randomized between 2 groups. Standard laryngoscopy (Standard Macintosh 4) was compared to video-assisted (AWS Pentaz Video) for preoperative intubation. No significant differences were reported between the 2 groups.
+
+The table was made with the `tbl_summary()` function of the `gtsummary` package.
+
+```{r echo = FALSE}
+t_lar <- lar |>
+  rename(
+    bmi = BMI,
+    rand = Randomization,
+    mall = Mallampati,
+    t_int = total_intubation_time,
+    success = intubation_overall_S_F,
+    s1 = attempt1_S_F,
+    t1 = attempt1_time,
+    s2 = attempt2_S_F,
+    t2 = attempt2_time,
+    s3 = attempt3_S_F,
+    t3 = attempt3_time
+  )
+
+# Demographics table
+dem_lar <- t_lar |>
+  mutate(
+    gender = recode(
+      gender,
+      `0` = 'Female',
+      `1` = 'Male'
+    ),
+    rand = recode(
+      rand,
+      `0` = 'Standard',
+      `1` = 'Video-assisted'
+    )
+  )
+  
+tbl_summary(
+  data = dem_lar,
+  by = rand,
+  statistic = list(
+    all_continuous() ~ '{mean}',
+    all_categorical() ~ '{n} ({p}%)'
+  ),
+  label = list(
+    age ~ 'Age',
+    gender ~ 'Gender',
+    asa ~ 'ASA',
+    bmi ~ 'BMI',
+    mall ~ 'Mallampati'
+  ),
+  missing = 'no',
+  include = c(age, gender, asa, bmi, mall)
+) |>
+  
+  add_ci(
+    pattern = '{stat} ({ci})',
+    include = all_continuous()
+  ) |>
+  add_p() |>
+  
+  modify_caption('Demographics characteristics by randomized group') |>
+  modify_header(
+    all_stat_cols() ~ '**{level}** (N = {n})'
+  ) |>
+  modify_footnote(
+    all_stat_cols() ~ 'Mean (95% CI); n (%)',
+    p.value ~ NA
+  ) |>
+  remove_abbreviation()
+```
+
+## Multivariate regression
+
+```{r echo = FALSE}
+mtb_lar <- t_lar |>
+  mutate(
+    rand = recode(
+      rand,
+      `0` = 'Standard',
+      `1` = 'Video-assisted'
+    ),
+    sore_throat = factor(sore_throat, levels = c(0, 1, 2, 3)),
+    sore_throat = recode(
+      sore_throat,
+      `0` = 'None',
+      `1` = 'Mild',
+      `2` = 'Moderate',
+      `3` = 'Severe'
+    )
+  )
+```
+
+The outcomes of the trial were analyzed with multivariate regression in table 2, either linear or logistic, while adjusting for the demographics.
+
+The multivariate regression analysis was done with the `lm()` or `glm()` function from the `gtsummary` package for linear and logistic regression, respectively.
+
+```{r echo = FALSE}
+tbl_summary(
+  data = mtb_lar,
+  by = rand,
+  statistic = list(
+    all_continuous() ~ '{mean}',
+    all_categorical() ~ '{n} ({p}%)'
+  ),
+  label = list(
+    t_int ~ 'Time (sec)',
+    t1 ~ '1st attempt',
+    success ~ 'Successful',
+    s1 ~ '1st attempt',
+    bleeding ~ 'Bleeding',
+    ease = 'Difficulty (0-100)',
+    sore_throat = 'Sore throat',
+    view = 'Good glottic view'
+  ),
+  missing = 'no',
+  include = c(
+    t_int, t1,
+    success, s1,
+    bleeding, ease, sore_throat, view
+  )
+) |>
+  
+  add_ci(
+    pattern = '{stat} ({ci})',
+    include = all_continuous()
+  ) |>
+  add_p() |>
+  
+  modify_caption('Outcomes by randomized group') |>
+  modify_header(
+    all_stat_cols() ~ '**{level}** (N = {n})'
+  ) |>
+  
+  modify_table_body(
+    ~ .x |>
+      mutate(
+        p.value = case_when(
+          variable == 't_int' ~ 0.00013,
+          variable == 't1' ~ 0.000000779,
+          variable == 'success' ~ 0.9954,
+          variable == 's1' ~ 0.453545,
+          variable == 'ease' ~ 0.0325,
+          variable == 'sore_throat' & row_type != 'level' ~ 0.520,
+          variable == 'view' ~ 0.183
+        )
+      )
+  ) |>
+  modify_footnote(
+    all_stat_cols() ~ 'Mean (95% CI); n (%)',
+    p.value ~ 'Adjusted for demographics in table 1 (age, gender, ASA, BMI, Mallampati)'
+  ) |>
+  remove_abbreviation() |>
+  
+  modify_table_styling(
+    columns = label,
+    rows = variable %in% c("t1", "s1"),
+    indent = 4
+  )
+```
+
+## Conclusion
+
+Standard laryngoscopy is a faster (p < 0.001) and easier (p = 0.033) way to achieve intubation than video-assisted laryngoscopy.
