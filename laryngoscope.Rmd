@@ -92,7 +92,7 @@ tbl_summary(
     p.value ~ NA
   ) |>
   remove_abbreviation() |>
-  knitr::kable()
+  as_kable()
 ```
 
 ## Multivariate regression
@@ -182,7 +182,7 @@ tbl_summary(
     rows = variable %in% c("t1", "s1"),
     indent = 4
   ) |>
-  knitr::kable()
+  as_kable()
 ```
 
 ## Conclusion
