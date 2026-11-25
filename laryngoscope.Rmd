@@ -91,7 +91,8 @@ tbl_summary(
     all_stat_cols() ~ 'Mean (95% CI); n (%)',
     p.value ~ NA
   ) |>
-  remove_abbreviation()
+  remove_abbreviation() |>
+  knitr::kable()
 ```
 
 ## Multivariate regression
@@ -180,7 +181,8 @@ tbl_summary(
     columns = label,
     rows = variable %in% c("t1", "s1"),
     indent = 4
-  )
+  ) |>
+  knitr::kable()
 ```
 
 ## Conclusion
